@@ -31,7 +31,7 @@ IPAddress subnet(255, 255, 255, 0); // Subnet this device looks for (255.255.255
 WiFiClient client;
 MySQL_Connection conn((Client *)&client);
 
-char INSERT_SQL[] = "INSERT INTO autohome.temp(sensorid, temp, humidity, pressure) VALUES (4, %s, %s, %s)"; // replace this with the query you want/need, the 4 is to differentiate between different sensors XXX
+char INSERT_SQL[] = "INSERT INTO DATABASE.TABLE(sensorid, temp, humidity, pressure) VALUES (4, %s, %s, %s)"; // replace this with the query you want/need, the 4 is to differentiate between different sensors XXX
 char query[128];
 
 IPAddress server_addr(0, 0, 0, 0); // IP of your MySQL Server XXX
