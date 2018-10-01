@@ -68,23 +68,7 @@ void loop() {
 
     // read data
     do {
-      //BME/BMP280
-      while (!bme.begin())
-      {
-        Serial.println("Could not find BME280 sensor!");
-        delay(1000);
-      }
-      switch (bme.chipModel())
-      {
-        case BME280::ChipModel_BME280:
-          Serial.println("Found BME280 sensor! Success.");
-          break;
-        case BME280::ChipModel_BMP280:
-          Serial.println("Found BMP280 sensor! No Humidity available.");
-          break;
-        default:
-          Serial.println("Found UNKNOWN sensor! Error!");
-      }
+      checksensor();
       // Sets the specific units, use Celsius or Fahrenheit here.
       BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
       BME280::PresUnit presUnit(BME280::PresUnit_Pa);
@@ -97,40 +81,15 @@ void loop() {
       dtostrf(var_pres, 1, 1, var_Cpres);
       // If the sensor functioned as it should
       if ((!isnan(var_hum)) && (!isnan(var_temp))) {
-        do {
-
-          Serial.println("Sensor has been read successfully");
-          // TO DO: Use the Pressuremeasurement to calculate the height etc.
-          // Connect to wifi
-          Serial.println("###WiFi NOT Connected##");
-          WiFi.config(ip, gateway, subnet);
-          Serial.println("Initialising connection");
-          Serial.print(F("Setting static ip to : "));
-          Serial.println(ip);
-          Serial.println("");
-          WiFi.begin(ssid, pass);
-          Serial.print("Connecting to ");
-          Serial.println(ssid);
-          wificonnect = 1;
-          connectloop++;
-
-        } while ((wificonnect != 1) && (connectloop < 6)); // Aborts after 5 times to save power
+        Serial.println("Sensor has been read successfully");
+        // TO DO: Use the Pressuremeasurement to calculate the height etc.
+        wififunction();
         // Sucks if you review your code after some time and didn't add comments..
       }
       connectloop = 0;
-      do {
-        Serial.println("Wifi has been connected successfully");
-        Serial.print("MAC: ");  Serial.print(mac[5], HEX);  Serial.print(":");  Serial.print(mac[4], HEX);  Serial.print(":");  Serial.print(mac[3], HEX);  Serial.print(":");  Serial.print(mac[2], HEX);  Serial.print(":");  Serial.print(mac[1], HEX);  Serial.print(":");  Serial.println(mac[0], HEX);
-        Serial.println("");
-        Serial.print("Assigned IP: ");
-        Serial.print(WiFi.localIP());
-        // Connect to database
-        conn.connect(server_addr, 3306, user, password); // 3306 = standard port
-        dbconn = 1;
-        j++;
-      } while ((dbconn != 1) && (j < 6));
-      j = 0;
-      Serial.println("Db has been connected successfully");
+      dbconnect();
+      dbupload(var_Ctemp,var_Chum,var_Cpres);
+
       // Upload the data
       // print query into the serial monitor for easy debugging
       sprintf(query, INSERT_SQL, sensorname, var_Ctemp, var_Chum, var_Cpres);
@@ -159,3 +118,66 @@ void loop() {
   }
   delay(20); // Workaround for an internal ESP8266 issue
 }
+void checksensor() {
+  //BME/BMP280
+  while (!bme.begin())
+  {
+    Serial.println("Could not find BME280 sensor!");
+    delay(1000);
+  }
+  switch (bme.chipModel())
+  {
+    case BME280::ChipModel_BME280:
+      Serial.println("Found BME280 sensor! Success.");
+      break;
+    case BME280::ChipModel_BMP280:
+      Serial.println("Found BMP280 sensor! No Humidity available.");
+      break;
+    default:
+      Serial.println("Found UNKNOWN sensor! Error!");
+  }
+}
+// Connect to WiFi
+void wififunction() {
+  do {
+    Serial.println("###WiFi NOT Connected##");
+    WiFi.config(ip, gateway, subnet);
+    Serial.println("Initialising connection");
+    Serial.print(F("Setting static ip to : "));
+    Serial.println(ip);
+    Serial.println("");
+    WiFi.begin(ssid, pass);
+    Serial.print("Connecting to ");
+    Serial.println(ssid);
+    wificonnect = 1;
+    connectloop++;
+
+  } while ((wificonnect != 1) && (connectloop < 6)); // Aborts after 5 times to save power
+  Serial.println("Wifi has been connected successfully");
+  Serial.println("");
+  Serial.print("Assigned IP: ");
+  Serial.print(WiFi.localIP());
+}
+// Connect to Databse
+void dbconnect() {
+  do {
+    conn.connect(server_addr, 3306, user, password); // 3306 = standard port
+    dbconn = 1;
+    j++;
+  } while ((dbconn != 1) && (j < 6));
+  j = 0; // Reset the Loop for the next time this runs
+  Serial.println("Db has been connected successfully");
+}
+void dbupload(char* var_Ctemp,char* var_Chum, char* var_Cpres) {
+  // Upload the data
+  // print query into the serial monitor for easy debugging
+  sprintf(query, INSERT_SQL, sensorname, var_Ctemp, var_Chum, var_Cpres);
+
+  Serial.println("Recording data..");
+  Serial.println(query);
+  // run query
+  MySQL_Cursor *cur_mem = new MySQL_Cursor(&conn);
+  cur_mem->execute(query);
+  delete cur_mem;
+}
+
