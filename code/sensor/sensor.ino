@@ -17,7 +17,7 @@ BME280I2C bme;    // Default : forced mode, standby time = 1000 ms Oversampling 
 
 // Changeable Stuff
 int sensorname = 4; // Sensor no. to differentiate results
-long interval = 900000; // Interval at which to check data in ms (15min = 900000ms, 30sek = 30000ms)
+long interval = 900000; // Interval at which to check data in ms (15min = 900000ms, 30sek = 30000ms) DONT CHECK FASTER THAN 2000ms! The BME/BMP will heat up or behave strangely!
 
 char ssid[] = "XXX"; // Your Networkname
 char pass[] = "XXX"; // Your Networkpassword
@@ -33,46 +33,51 @@ char password[] = "XXX"; // Your MySQL password
 char INSERT_SQL[] = "INSERT INTO DATABASE.TABLE(sensorid, temp, humidity, pressure) VALUES (%i, %s, %s, %s)"; // replace this with the query you want/need
 
 // Do not change stuff below this line if you're not knowing what you're doing!
-byte mac[6];
-int wificonnect = 0;
+int wificonnect = 0; // checks the wificonnection 1 = connected
 int connectloop = 0; // counts the number of tries
 
 WiFiServer server(80);
-
 WiFiClient client;
 MySQL_Connection conn((Client *)&client);
+char query[128]; // max query length
 
-char query[128];
+long previousMillis = 0; // Will store the last time when sensors were read
 
-long previousMillis = 0; // Will store last time sensors were read
 
-int i = 0;
-int j = 0;
 int dbconn = 0;
 float var_temp(NAN), var_hum(NAN), var_pres(NAN);
+
+// Functionprototypes
+void checksensor();
+void wififunction();
+void dbupload(char*, char*, char*);
+
+// Runs once
 void setup() {
-  //runs once
   Serial.begin(115200);
   Wire.begin();
   //WiFi.persistent(false); // to fix unnecessary writing to flash and "random" connections to wifi, does not seem to work properly
 }
-
+// Repeating code
 void loop() {
-  //repeating code here
-
+  int i = 0;
   unsigned long currentMillis = millis();
-  // run following after each interval (ms)
+  // run following code after each interval (ms)
   if (currentMillis - previousMillis > interval) {
     // saves the time at which it last measured
     previousMillis = currentMillis;
 
-    // read data
+    
     do {
-      checksensor();
+      checksensor(); // Tests which Sensor is currently connected
+      
       // Sets the specific units, use Celsius or Fahrenheit here.
+      // TODO: Move this into the "changeable lines"
       BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
       BME280::PresUnit presUnit(BME280::PresUnit_Pa);
+      // reads sensordata
       bme.read(var_pres, var_temp, var_hum, tempUnit, presUnit);
+      // Converts the input into useable variables
       char var_Ctemp[10];
       char var_Chum[10];
       char var_Cpres[20];
@@ -82,39 +87,27 @@ void loop() {
       // If the sensor functioned as it should
       if ((!isnan(var_hum)) && (!isnan(var_temp))) {
         Serial.println("Sensor has been read successfully");
-        // TO DO: Use the Pressuremeasurement to calculate the height etc.
+        // TODO: Use the Pressuremeasurement to calculate the height etc.
         wififunction();
         // Sucks if you review your code after some time and didn't add comments..
       }
-      connectloop = 0;
+      connectloop = 0; // reset the variable for the next time this runs (used in wififunction())
       dbconnect();
-      dbupload(var_Ctemp,var_Chum,var_Cpres);
-
-      // Upload the data
-      // print query into the serial monitor for easy debugging
-      sprintf(query, INSERT_SQL, sensorname, var_Ctemp, var_Chum, var_Cpres);
-
-      Serial.println("Recording data..");
-      Serial.println(query);
-      // run query
-      MySQL_Cursor *cur_mem = new MySQL_Cursor(&conn);
-      cur_mem->execute(query);
-      delete cur_mem;
-
+      dbupload(var_Ctemp, var_Chum, var_Cpres);
+      
       i++;
     } while ((!isnan(var_hum)) && (!isnan(var_temp)) && (i < 1));
-    i = 0;
+    i = 0; // reset the loop for the next time this runs
     // close db connection
-    dbconn = 0;
+    dbconn = 0;// reset the variable for the next time this runs (used in dbconnect())
     conn.close();
     Serial.println("Closed db connection");
     // disconnect wifi to save power
-    wificonnect = 0;
+    wificonnect = 0; // reset the variable for the next time this runs (used in wififunction())
     WiFi.disconnect();
     Serial.println("Closed wifi connection");
 
     // TODO: use deepsleep
-
   }
   delay(20); // Workaround for an internal ESP8266 issue
 }
@@ -158,17 +151,18 @@ void wififunction() {
   Serial.print("Assigned IP: ");
   Serial.print(WiFi.localIP());
 }
-// Connect to Databse
+// Connect to Database
 void dbconnect() {
+  int j = 0;
   do {
     conn.connect(server_addr, 3306, user, password); // 3306 = standard port
     dbconn = 1;
     j++;
   } while ((dbconn != 1) && (j < 6));
-  j = 0; // Reset the Loop for the next time this runs
+  j = 0; // reset the loop for the next time this runs
   Serial.println("Db has been connected successfully");
 }
-void dbupload(char* var_Ctemp,char* var_Chum, char* var_Cpres) {
+void dbupload(char* var_Ctemp, char* var_Chum, char* var_Cpres) {
   // Upload the data
   // print query into the serial monitor for easy debugging
   sprintf(query, INSERT_SQL, sensorname, var_Ctemp, var_Chum, var_Cpres);
