@@ -6,7 +6,6 @@
 #include <MySQL_Connection.h> // MySQL Connector
 #include <MySQL_Cursor.h> // MySQL Connector
 #include <ESP8266WiFi.h> // Wifi Connector
-#include <WiFiClient.h> // Wifi Connector
 
 //BME/BMP280 specific
 #include <Wire.h> // Wire Library
@@ -57,6 +56,13 @@ void setup() {
   Serial.begin(115200);
   Wire.begin();
   //WiFi.persistent(false); // to fix unnecessary writing to flash and "random" connections to wifi, does not seem to work properly
+  Serial.print("Sensor: ");
+  Serial.println(sensorname);
+  Serial.print(F("IP : "));
+  Serial.println(ip);
+  Serial.println("");
+  Serial.println("AT+CWMODE_CUR=1<CR>"); // Sets ESP8266 as Client (avoids broadcasting a network)
+  Serial.println("");
 }
 // Repeating code
 void loop() {
@@ -67,10 +73,10 @@ void loop() {
     // saves the time at which it last measured
     previousMillis = currentMillis;
 
-    
+
     do {
       checksensor(); // Tests which Sensor is currently connected
-      
+
       // Sets the specific units, use Celsius or Fahrenheit here.
       // TODO: Move this into the "changeable lines"
       BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
@@ -94,7 +100,7 @@ void loop() {
       connectloop = 0; // reset the variable for the next time this runs (used in wififunction())
       dbconnect();
       dbupload(var_Ctemp, var_Chum, var_Cpres);
-      
+
       i++;
     } while ((!isnan(var_hum)) && (!isnan(var_temp)) && (i < 1));
     i = 0; // reset the loop for the next time this runs
@@ -106,12 +112,14 @@ void loop() {
     wificonnect = 0; // reset the variable for the next time this runs (used in wififunction())
     WiFi.disconnect();
     Serial.println("Closed wifi connection");
-
+    Serial.println("Waiting for the next loop...");
+    Serial.println("");
     // TODO: use deepsleep
   }
   delay(20); // Workaround for an internal ESP8266 issue
 }
 void checksensor() {
+  Serial.println("Searching for sensors...");
   //BME/BMP280
   while (!bme.begin())
   {
@@ -139,6 +147,7 @@ void wififunction() {
     Serial.print(F("Setting static ip to : "));
     Serial.println(ip);
     Serial.println("");
+    WiFi.mode(WIFI_STA); // Set WiFi to Clientmode
     WiFi.begin(ssid, pass);
     Serial.print("Connecting to ");
     Serial.println(ssid);
@@ -148,13 +157,17 @@ void wififunction() {
   } while ((wificonnect != 1) && (connectloop < 6)); // Aborts after 5 times to save power
   Serial.println("Wifi has been connected successfully");
   Serial.println("");
+  Serial.print("Assigned Hostname: ");
+  Serial.println(WiFi.hostname());
+  Serial.println("");
   Serial.print("Assigned IP: ");
-  Serial.print(WiFi.localIP());
+  Serial.println(WiFi.localIP());
 }
 // Connect to Database
 void dbconnect() {
   int j = 0;
   do {
+    Serial.println("Connecting to Database...");
     conn.connect(server_addr, 3306, user, password); // 3306 = standard port
     dbconn = 1;
     j++;
