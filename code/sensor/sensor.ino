@@ -15,9 +15,11 @@
 BME280I2C bme;    // Default : forced mode, standby time = 1000 ms Oversampling = pressure ×1, temperature ×1, humidity ×1, filter off,
 
 // Changeable Stuff
+// Sensorspecific
 int sensorname = 4; // Sensor no. to differentiate results
-long interval = 900000; // Interval at which to check data in ms (15min = 900000ms, 30sek = 30000ms) DONT CHECK FASTER THAN 2000ms! The BME/BMP will heat up or behave strangely!
+long interval = 30000; // Interval at which to check data in ms (15min = 900000ms, 30sek = 30000ms) DONT CHECK FASTER THAN 2000ms! The BME/BMP will heat up or behave strangely!
 
+// WiFi
 char ssid[] = "XXX"; // Your Networkname
 char pass[] = "XXX"; // Your Networkpassword
 
@@ -25,6 +27,7 @@ IPAddress ip(0, 0, 0, 0); // Ip of this device in your network
 IPAddress gateway(0, 0, 0, 0); // Gateway this device looks for (The same IP as your router should work in most cases)
 IPAddress subnet(255, 255, 255, 0); // Subnet this device looks for (255.255.255.0 should work in most cases)
 
+// MySQL
 IPAddress server_addr(0, 0, 0, 0); // IP of your MySQL Server
 char user[] = "XXX"; // Your MySQL user
 char password[] = "XXX"; // Your MySQL password
@@ -140,7 +143,8 @@ void checksensor() {
 }
 // Connect to WiFi
 void wififunction() {
-  do {
+    if(WiFi.status() != 3 && WiFi.status() != 0){
+    do {
     Serial.println("###WiFi NOT Connected##");
     WiFi.config(ip, gateway, subnet);
     Serial.println("Initialising connection");
@@ -148,14 +152,20 @@ void wififunction() {
     Serial.println(ip);
     Serial.println("");
     WiFi.mode(WIFI_STA); // Set WiFi to Clientmode
-    WiFi.begin(ssid, pass);
     Serial.print("Connecting to ");
     Serial.println(ssid);
+    WiFi.begin(ssid, pass);
+    
+    
     wificonnect = 1;
     connectloop++;
 
   } while ((wificonnect != 1) && (connectloop < 6)); // Aborts after 5 times to save power
   Serial.println("Wifi has been connected successfully");
+  }
+  else{
+      Serial.println("###WiFi is Connected##");
+    }
   Serial.println("");
   Serial.print("Assigned Hostname: ");
   Serial.println(WiFi.hostname());
