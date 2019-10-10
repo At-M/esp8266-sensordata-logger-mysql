@@ -14,7 +14,7 @@ But I'm happy if you want to give me feedback nonetheless.
 
 ## Hardware:
 
-ESP8266 Compatible Board (Tested only with a WeMos D1 Mini!)
+ESP8266 Compatible Board _(Tested only with a WeMos D1 Mini!)_
 
 Bosch BME280 / BMP280 Sensor
 
@@ -50,7 +50,7 @@ Of course MySQL, might work with others too, check the responsible Library thoug
 
 My Database looks like this:
 
-_(Using varchar for temp and humidity is a workaround for something else though)_
+_(Using varchar for temp and humidity is my workaround for something else, adjust your code accordingly if you want to use a numeric value)_
 
 **Databasename:** autohome
 
@@ -65,3 +65,4 @@ _(Using varchar for temp and humidity is a workaround for something else though)
  humidity | varchar(25) | yes | NULL | /
  date | timestamp | no | CURRENT_TIMESTAMP | /
  pressure | double | yes | NULL | /
+ 
